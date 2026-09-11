@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { getJSON, sendJSON } from '../../lib/api';
+import PageHeader from '../../components/PageHeader';
+import { DocumentIcon, PlusIcon, SearchIcon, SparklesIcon, CalendarIcon, CloseIcon, ShieldCheckIcon, CourthouseIcon } from '../../components/Icons';
 
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState([]);
@@ -12,6 +14,8 @@ export default function DocumentsPage() {
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [message, setMessage] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isSummarizing, setIsSummarizing] = useState(false);
 
   const [newDoc, setNewDoc] = useState({
     case_id: '',
@@ -44,6 +48,7 @@ export default function DocumentsPage() {
       setSearchResults(null);
       return;
     }
+    setIsSearching(true);
     setMessage('Searching synthetic demo documents...');
     try {
       const res = await sendJSON('/ai/search', 'POST', { query });
@@ -51,10 +56,13 @@ export default function DocumentsPage() {
       setMessage(`Found ${res.results.length} matching document(s).`);
     } catch (e) {
       setMessage(`Search error: ${e.message}`);
+    } finally {
+      setIsSearching(false);
     }
   }
 
   async function handleSummarize(docId) {
+    setIsSummarizing(true);
     setMessage('Generating AI document summary...');
     try {
       const res = await sendJSON('/ai/summary', 'POST', { document_id: docId });
@@ -62,6 +70,8 @@ export default function DocumentsPage() {
       setMessage('AI Summary generated successfully.');
     } catch (e) {
       setMessage(`Error generating summary: ${e.message}`);
+    } finally {
+      setIsSummarizing(false);
     }
   }
 
@@ -94,51 +104,77 @@ export default function DocumentsPage() {
 
   return (
     <div>
-      <div className="card-head" style={{ marginBottom: '20px' }}>
-        <div>
-          <p className="eyebrow">DOCUMENT INTELLIGENCE</p>
-          <h1>Documents & AI Assistant</h1>
-        </div>
-        <button onClick={() => setIsUploading(true)}>+ Upload Demo Document</button>
-      </div>
+      <PageHeader
+        breadcrumbs={[{ label: 'Documents & AI' }]}
+        eyebrow="DOCUMENT INTELLIGENCE & SEARCH"
+        title="Documents & AI Assistant"
+        subtitle="Search indexed case documents by legal context, inspect full filings, and request automated AI summaries."
+        action={
+          <button onClick={() => setIsUploading(true)}>
+            <PlusIcon size={16} />
+            <span>Upload Demo Document</span>
+          </button>
+        }
+      />
 
       {message && <div className="notice info">{message}</div>}
 
       {/* AI SEARCH FORM */}
-      <form onSubmit={handleSearch} className="card" style={{ marginBottom: '24px', display: 'flex', gap: '12px' }}>
-        <input
-          type="text"
-          placeholder="Search case documents by keyword (e.g. notice clause, payment, filing order)..."
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-        <button type="submit">🔍 AI Search</button>
+      <form onSubmit={handleSearch} className="card" style={{ marginBottom: '28px', padding: '20px' }}>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <SearchIcon size={18} style={{ position: 'absolute', left: '14px', color: 'var(--gold-600)' }} />
+            <input
+              type="text"
+              placeholder="Search case documents by keyword or legal context (e.g. notice clause, payment, filing order)..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              style={{ paddingLeft: '42px' }}
+            />
+          </div>
+          <button type="submit" className="gold" disabled={isSearching} style={{ flexShrink: 0 }}>
+            <SparklesIcon size={16} />
+            <span>{isSearching ? 'Searching...' : 'AI Search'}</span>
+          </button>
+        </div>
       </form>
 
       {/* AI SEARCH RESULTS */}
       {searchResults && (
-        <section className="card" style={{ marginBottom: '24px' }}>
+        <section className="card" style={{ marginBottom: '28px' }}>
           <div className="card-head">
-            <h2>AI Search Results</h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <SparklesIcon size={20} style={{ color: 'var(--gold-600)' }} />
+              <h2>AI Search Results</h2>
+            </div>
             <span className="badge info">{searchResults.notice}</span>
           </div>
+
           {searchResults.results.length === 0 ? (
-            <p className="lead">No matching demo documents found.</p>
+            <div className="empty-state" style={{ padding: '24px' }}>
+              <p className="empty-state-desc">No matching demo documents found for your search query.</p>
+            </div>
           ) : (
             <div className="grid two">
               {searchResults.results.map((r) => (
                 <div key={r.document_id} className="result-box" style={{ margin: 0 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                    <strong style={{ color: 'var(--accent-light)' }}>{r.case_code} · {r.name}</strong>
-                    <span className="badge">Relevance Score: {r.score}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                    <div>
+                      <span className="badge gold" style={{ fontSize: '11px', marginBottom: '4px' }}>{r.case_code}</span>
+                      <strong style={{ fontSize: '15px', color: 'var(--navy-950)', display: 'block' }}>{r.name}</strong>
+                    </div>
+                    <span className="badge info">Relevance: {r.score}</span>
                   </div>
-                  <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{r.preview}</p>
+                  <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '14px', lineHeight: '1.6' }}>
+                    {r.preview}
+                  </p>
                   <button
                     className="secondary"
-                    style={{ marginTop: '10px', fontSize: '12px', padding: '6px 12px' }}
+                    style={{ fontSize: '12px', padding: '6px 12px' }}
                     onClick={() => viewDocument(r.document_id)}
                   >
-                    View Document
+                    <DocumentIcon size={14} />
+                    <span>View Document</span>
                   </button>
                 </div>
               ))}
@@ -149,42 +185,65 @@ export default function DocumentsPage() {
 
       {/* AI SUMMARY DISPLAY */}
       {summaryResult && (
-        <section className="review-box card" style={{ marginBottom: '24px' }}>
+        <section className="review-box" style={{ marginBottom: '28px' }}>
           <div className="card-head">
-            <div>
-              <p className="eyebrow">AI GENERATED SUMMARY</p>
-              <h2>Document: {summaryResult.document}</h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <SparklesIcon size={20} style={{ color: 'var(--gold-600)' }} />
+              <div>
+                <p className="eyebrow" style={{ margin: 0 }}>AI GENERATED SUMMARY</p>
+                <h2>Document: {summaryResult.document}</h2>
+              </div>
             </div>
-            <button className="secondary" onClick={() => setSummaryResult(null)}>Close</button>
+            <button className="secondary" style={{ padding: '6px 12px', fontSize: '12px' }} onClick={() => setSummaryResult(null)}>
+              <CloseIcon size={14} /> Close
+            </button>
           </div>
+
           <div className="result-box">{summaryResult.summary}</div>
-          <div className="notice warning" style={{ margin: 0, fontSize: '13px' }}>
-            {summaryResult.notice}
+
+          <div className="notice warning" style={{ margin: 0, fontSize: '12.5px' }}>
+            <ShieldCheckIcon size={16} />
+            <div>{summaryResult.notice}</div>
           </div>
         </section>
       )}
 
       {/* DOCUMENT LIBRARY GRID */}
-      <h2 style={{ fontSize: '20px', marginBottom: '16px' }}>Indexed Document Library</h2>
+      <div style={{ marginBottom: '16px' }}>
+        <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '22px', color: 'var(--navy-950)' }}>
+          Indexed Document Library ({documents.length})
+        </h2>
+      </div>
+
       <div className="grid three">
         {documents.map((d) => (
-          <article className="card" key={d.id}>
-            <div className="card-head" style={{ marginBottom: '12px' }}>
-              <span className="badge info">{d.doc_type}</span>
-              <strong style={{ color: 'var(--accent-light)' }}>{d.case_code}</strong>
+          <article className="card" key={d.id} style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            <div>
+              <div className="card-head" style={{ marginBottom: '12px' }}>
+                <span className="badge info">{d.doc_type}</span>
+                <strong style={{ color: 'var(--gold-700)', fontFamily: 'var(--font-serif)', fontSize: '14px' }}>
+                  {d.case_code}
+                </strong>
+              </div>
+
+              <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '17px', fontWeight: '700', marginBottom: '8px', color: 'var(--navy-950)' }}>
+                {d.name}
+              </h3>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '20px' }}>
+                <CalendarIcon size={13} />
+                <span>Uploaded: {d.uploaded_at}</span>
+              </div>
             </div>
 
-            <h3 style={{ fontSize: '16px', marginBottom: '8px', color: '#ffffff' }}>{d.name}</h3>
-            <p className="lead" style={{ fontSize: '12px', marginBottom: '16px' }}>
-              Uploaded: {d.uploaded_at}
-            </p>
-
             <div style={{ display: 'flex', gap: '8px' }}>
-              <button className="secondary" style={{ flex: 1, fontSize: '12px' }} onClick={() => viewDocument(d.id)}>
-                📖 Read Text
+              <button className="secondary" style={{ flex: 1, fontSize: '12px', padding: '8px 10px' }} onClick={() => viewDocument(d.id)}>
+                <DocumentIcon size={14} />
+                <span>Read Text</span>
               </button>
-              <button style={{ flex: 1, fontSize: '12px' }} onClick={() => handleSummarize(d.id)}>
-                ✨ AI Summary
+              <button className="gold" style={{ flex: 1, fontSize: '12px', padding: '8px 10px' }} disabled={isSummarizing} onClick={() => handleSummarize(d.id)}>
+                <SparklesIcon size={14} />
+                <span>AI Summary</span>
               </button>
             </div>
           </article>
@@ -194,22 +253,27 @@ export default function DocumentsPage() {
       {/* VIEW DOCUMENT TEXT MODAL */}
       {selectedDoc && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '700px' }}>
+          <div className="modal-content" style={{ maxWidth: '720px' }}>
             <div className="card-head">
               <div>
                 <p className="eyebrow">{selectedDoc.case_code} · {selectedDoc.doc_type}</p>
-                <h2>{selectedDoc.name}</h2>
+                <h2 style={{ fontSize: '20px' }}>{selectedDoc.name}</h2>
               </div>
-              <button className="secondary" onClick={() => setSelectedDoc(null)}>✕</button>
+              <button className="secondary" style={{ padding: '6px' }} onClick={() => setSelectedDoc(null)}>
+                <CloseIcon size={16} />
+              </button>
             </div>
 
-            <div className="result-box" style={{ maxHeight: '350px', overflowY: 'auto', margin: '16px 0' }}>
+            <div className="result-box" style={{ maxHeight: '380px', overflowY: 'auto', margin: '18px 0' }}>
               {selectedDoc.content}
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button className="secondary" onClick={() => setSelectedDoc(null)}>Close</button>
-              <button onClick={() => { handleSummarize(selectedDoc.id); setSelectedDoc(null); }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button className="secondary" onClick={() => setSelectedDoc(null)}>
+                Close
+              </button>
+              <button className="gold" onClick={() => { handleSummarize(selectedDoc.id); setSelectedDoc(null); }}>
+                <SparklesIcon size={14} />
                 Summarize with AI
               </button>
             </div>
@@ -222,13 +286,18 @@ export default function DocumentsPage() {
         <div className="modal-overlay">
           <div className="modal-content">
             <div className="card-head">
-              <h2>Upload Demo Document</h2>
-              <button className="secondary" onClick={() => setIsUploading(false)}>✕</button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <DocumentIcon size={20} style={{ color: 'var(--gold-600)' }} />
+                <h2>Upload Demo Document</h2>
+              </div>
+              <button className="secondary" style={{ padding: '6px' }} onClick={() => setIsUploading(false)}>
+                <CloseIcon size={16} />
+              </button>
             </div>
 
-            <form onSubmit={handleUploadDoc} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <form onSubmit={handleUploadDoc} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '12px' }}>
               <label>
-                <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-muted)' }}>Target Case</span>
+                <span className="form-label-text">Target Case</span>
                 <select
                   value={newDoc.case_id}
                   onChange={(e) => setNewDoc({ ...newDoc, case_id: e.target.value })}
@@ -242,7 +311,7 @@ export default function DocumentsPage() {
               </label>
 
               <label>
-                <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-muted)' }}>File Name</span>
+                <span className="form-label-text">File Name</span>
                 <input
                   required
                   placeholder="e.g. witness_statement_v1.txt"
@@ -252,7 +321,7 @@ export default function DocumentsPage() {
               </label>
 
               <label>
-                <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-muted)' }}>Document Type</span>
+                <span className="form-label-text">Document Type</span>
                 <select
                   value={newDoc.doc_type}
                   onChange={(e) => setNewDoc({ ...newDoc, doc_type: e.target.value })}
@@ -266,7 +335,7 @@ export default function DocumentsPage() {
               </label>
 
               <label>
-                <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-muted)' }}>Synthetic Content Text</span>
+                <span className="form-label-text">Synthetic Content Text</span>
                 <textarea
                   required
                   rows={5}
@@ -276,11 +345,13 @@ export default function DocumentsPage() {
                 />
               </label>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '12px' }}>
                 <button type="button" className="secondary" onClick={() => setIsUploading(false)}>
                   Cancel
                 </button>
-                <button type="submit">Upload Document</button>
+                <button type="submit" className="gold">
+                  Upload Document
+                </button>
               </div>
             </form>
           </div>

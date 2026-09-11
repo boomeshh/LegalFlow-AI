@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { getJSON, sendJSON } from '../../lib/api';
+import PageHeader from '../../components/PageHeader';
+import { ShieldCheckIcon, UserIcon, CheckIcon, SparklesIcon, CalendarIcon } from '../../components/Icons';
 
 const initialForm = {
   tester_role: '',
@@ -49,26 +51,34 @@ export default function ValidationPage() {
 
   return (
     <div>
-      {/* PAGE HEADER */}
-      <div className="card-head" style={{ marginBottom: '20px' }}>
+      <PageHeader
+        breadcrumbs={[{ label: 'Feedback' }]}
+        eyebrow="EVALUATION & QUALITY ASSURANCE"
+        title="Platform Feedback & Validation"
+        subtitle="Collect structured observations, workflow assessments, and feature recommendations from advocates and legal teams."
+      />
+
+      <div className="notice info" style={{ marginBottom: '24px' }}>
+        <ShieldCheckIcon size={18} />
         <div>
-          <p className="eyebrow">FEEDBACK & EVALUATION</p>
-          <h1>User Feedback</h1>
+          <strong>Legal Professional Evaluation:</strong> We welcome structured feedback from legal advocates, senior counsel, and legal clerks evaluating this platform prototype. Please record your findings below.
         </div>
       </div>
 
-      <div className="notice info" style={{ marginBottom: '24px' }}>
-        <strong>User Evaluation:</strong> We welcome feedback from legal professionals, advocates, and team members evaluating the platform. Please submit your observations below.
-      </div>
-
-      {message && <div className="notice info">{message}</div>}
+      {message && <div className="notice success">{message}</div>}
 
       {/* FEEDBACK FORM */}
-      <section className="card" style={{ marginBottom: '32px' }}>
-        <h2 style={{ fontSize: '20px', marginBottom: '16px' }}>Record Evaluation</h2>
-        <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
+      <section className="card" style={{ marginBottom: '32px', padding: '28px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
+          <UserIcon size={20} style={{ color: 'var(--gold-600)' }} />
+          <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '20px', color: 'var(--navy-950)' }}>
+            Record Evaluation Observation
+          </h2>
+        </div>
+
+        <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '20px' }}>
           <label>
-            <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-muted)' }}>Role</span>
+            <span className="form-label-text">Role / Designation</span>
             <input
               required
               placeholder="e.g. Senior Advocate / Junior Advocate / Legal Clerk / Reviewer"
@@ -78,7 +88,7 @@ export default function ValidationPage() {
           </label>
 
           <label>
-            <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-muted)' }}>Task Tested</span>
+            <span className="form-label-text">Task / Feature Tested</span>
             <input
               required
               placeholder="e.g. Case drafting & advocate review flow, AI document search"
@@ -88,7 +98,7 @@ export default function ValidationPage() {
           </label>
 
           <label style={{ gridColumn: 'span 2' }}>
-            <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-muted)' }}>What Worked Well?</span>
+            <span className="form-label-text">What Worked Well?</span>
             <textarea
               required
               rows={2}
@@ -99,7 +109,7 @@ export default function ValidationPage() {
           </label>
 
           <label style={{ gridColumn: 'span 2' }}>
-            <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-muted)' }}>What Was Confusing or Unclear?</span>
+            <span className="form-label-text">What Was Confusing or Unclear?</span>
             <textarea
               required
               rows={2}
@@ -110,7 +120,7 @@ export default function ValidationPage() {
           </label>
 
           <label style={{ gridColumn: 'span 2' }}>
-            <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-muted)' }}>Suggested Improvements</span>
+            <span className="form-label-text">Suggested Improvements</span>
             <textarea
               required
               rows={2}
@@ -121,7 +131,7 @@ export default function ValidationPage() {
           </label>
 
           <label style={{ gridColumn: 'span 2' }}>
-            <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-muted)' }}>Final Overall Feedback</span>
+            <span className="form-label-text">Final Overall Feedback</span>
             <textarea
               required
               rows={2}
@@ -132,8 +142,9 @@ export default function ValidationPage() {
           </label>
 
           <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'flex-end' }}>
-            <button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Saving Feedback...' : 'Submit Feedback'}
+            <button type="submit" className="gold" disabled={isSubmitting}>
+              <CheckIcon size={16} />
+              <span>{isSubmitting ? 'Saving Feedback...' : 'Submit Feedback'}</span>
             </button>
           </div>
         </form>
@@ -141,8 +152,11 @@ export default function ValidationPage() {
 
       {/* RECORDED FEEDBACK TABLE */}
       <section className="card">
-        <div className="card-head" style={{ marginBottom: '16px' }}>
-          <h2>Recorded Feedback ({feedbackList.length})</h2>
+        <div className="card-head" style={{ marginBottom: '18px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <ShieldCheckIcon size={20} style={{ color: 'var(--gold-600)' }} />
+            <h2>Recorded Feedback Log ({feedbackList.length})</h2>
+          </div>
           <span className="badge info">Live Database Records</span>
         </div>
 
@@ -157,27 +171,30 @@ export default function ValidationPage() {
                 <th>What Was Confusing</th>
                 <th>Suggested Improvement</th>
                 <th>Final Feedback</th>
-                <th>Date</th>
+                <th>Date Recorded</th>
               </tr>
             </thead>
             <tbody>
               {feedbackList.length === 0 ? (
                 <tr>
-                  <td colSpan="8" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>
-                    No feedback recorded yet.
+                  <td colSpan="8" style={{ textAlign: 'center', padding: '36px', color: 'var(--text-muted)' }}>
+                    No feedback records found in database yet.
                   </td>
                 </tr>
               ) : (
                 feedbackList.map((item, index) => (
                   <tr key={item.id}>
-                    <td><strong>{index + 1}</strong></td>
+                    <td><strong style={{ color: 'var(--gold-700)' }}>{index + 1}</strong></td>
                     <td><span className="badge info">{item.tester_role}</span></td>
-                    <td><strong>{item.task_tested}</strong></td>
-                    <td style={{ fontSize: '13px' }}>{item.what_worked}</td>
-                    <td style={{ fontSize: '13px', color: '#fca5a5' }}>{item.confusing}</td>
-                    <td style={{ fontSize: '13px', color: '#fde047' }}>{item.improvement}</td>
+                    <td><strong style={{ color: 'var(--navy-950)' }}>{item.task_tested}</strong></td>
+                    <td style={{ fontSize: '13px', color: '#166534' }}>{item.what_worked}</td>
+                    <td style={{ fontSize: '13px', color: '#991B1B' }}>{item.confusing}</td>
+                    <td style={{ fontSize: '13px', color: '#854D0E' }}>{item.improvement}</td>
                     <td style={{ fontSize: '13px' }}>{item.final_feedback}</td>
-                    <td style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>{item.created_at}</td>
+                    <td style={{ fontSize: '12px', whiteSpace: 'nowrap', color: 'var(--text-muted)' }}>
+                      <CalendarIcon size={12} style={{ display: 'inline', marginRight: '4px' }} />
+                      {item.created_at}
+                    </td>
                   </tr>
                 ))
               )}

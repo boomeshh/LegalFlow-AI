@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { getJSON, sendJSON } from '../../lib/api';
+import PageHeader from '../../components/PageHeader';
+import { BriefcaseIcon, PlusIcon, SearchIcon, SparklesIcon, CalendarIcon, UserIcon, GavelIcon, CheckIcon, CloseIcon, ShieldCheckIcon } from '../../components/Icons';
 
 export default function CasesPage() {
   const [cases, setCases] = useState([]);
@@ -11,6 +13,7 @@ export default function CasesPage() {
   const [draftText, setDraftText] = useState('');
   const [message, setMessage] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const [newCase, setNewCase] = useState({
     case_code: '',
@@ -55,6 +58,7 @@ export default function CasesPage() {
   }
 
   async function generateDraft(caseId) {
+    setIsGenerating(true);
     setMessage('AI is drafting client status update based on case progress...');
     try {
       const d = await sendJSON('/ai/client-update-draft', 'POST', { case_id: caseId });
@@ -63,6 +67,8 @@ export default function CasesPage() {
       setMessage('AI Draft Generated! Advocate review required before sending.');
     } catch (e) {
       setMessage(`Error generating draft: ${e.message}`);
+    } finally {
+      setIsGenerating(false);
     }
   }
 
@@ -97,82 +103,132 @@ export default function CasesPage() {
 
   return (
     <div>
-      <div className="card-head" style={{ marginBottom: '20px' }}>
-        <div>
-          <p className="eyebrow">CASE MANAGEMENT</p>
-          <h1>Legal Cases</h1>
-        </div>
-        <button onClick={() => setIsCreating(true)}>+ New Demo Case</button>
-      </div>
+      <PageHeader
+        breadcrumbs={[{ label: 'Cases' }]}
+        eyebrow="CASE MANAGEMENT & DOCKET"
+        title="Legal Cases & Matters"
+        subtitle="Track active legal proceedings, scheduled hearings, lead advocates, and AI client communications."
+        action={
+          <button onClick={() => setIsCreating(true)}>
+            <PlusIcon size={16} />
+            <span>New Demo Case</span>
+          </button>
+        }
+      />
 
       {message && <div className="notice info">{message}</div>}
 
       {/* SEARCH BAR */}
-      <div className="card" style={{ marginBottom: '24px' }}>
-        <input
-          type="text"
-          placeholder="Filter cases by code, title, or category (e.g. CIV, Service, Civil)..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
+      <div className="card" style={{ marginBottom: '24px', padding: '16px 20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <SearchIcon size={18} style={{ color: 'var(--gold-600)' }} />
+          <input
+            type="text"
+            placeholder="Search cases by code, title, or category (e.g. CIV, Service, Civil)..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{ border: 'none', background: 'transparent', padding: '4px 0' }}
+          />
+          {searchQuery && (
+            <span className="badge" style={{ flexShrink: 0 }}>
+              {filteredCases.length} found
+            </span>
+          )}
+        </div>
       </div>
 
       {/* CASES GRID */}
-      <div className="grid three">
-        {filteredCases.map((c) => (
-          <article className="card" key={c.id}>
-            <div className="card-head" style={{ marginBottom: '12px' }}>
-              <span className={`badge ${c.status === 'Active' ? 'active' : 'on-hold'}`}>
-                {c.status}
-              </span>
-              <strong style={{ color: 'var(--accent-light)' }}>{c.case_code}</strong>
-            </div>
+      {filteredCases.length === 0 ? (
+        <div className="card empty-state">
+          <div className="empty-state-icon">
+            <BriefcaseIcon size={24} />
+          </div>
+          <h3 className="empty-state-title">No Cases Found</h3>
+          <p className="empty-state-desc">No demo cases match your search query. Try clearing the filter or create a new case.</p>
+        </div>
+      ) : (
+        <div className="grid three">
+          {filteredCases.map((c) => (
+            <article className="card" key={c.id} style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <div>
+                <div className="card-head" style={{ marginBottom: '14px' }}>
+                  <span className={`badge ${c.status === 'Active' ? 'active' : 'on-hold'}`}>
+                    {c.status}
+                  </span>
+                  <strong style={{ color: 'var(--gold-700)', fontFamily: 'var(--font-serif)', fontSize: '15px' }}>
+                    {c.case_code}
+                  </strong>
+                </div>
 
-            <h2 style={{ fontSize: '18px', marginBottom: '8px' }}>{c.title}</h2>
-            <p className="lead" style={{ fontSize: '13px', marginBottom: '4px' }}>
-              Category: {c.category}
-            </p>
-            <p className="lead" style={{ fontSize: '13px', marginBottom: '4px' }}>
-              Lead Advocate: {c.owner}
-            </p>
-            <p className="lead" style={{ fontSize: '13px', marginBottom: '16px' }}>
-              Next Hearing: <strong style={{ color: '#ffffff' }}>{c.next_hearing || 'Not scheduled'}</strong>
-            </p>
+                <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '18px', fontWeight: '700', marginBottom: '10px', color: 'var(--navy-950)' }}>
+                  {c.title}
+                </h3>
 
-            <button className="secondary" style={{ width: '100%' }} onClick={() => generateDraft(c.id)}>
-              ✨ Generate AI Client Update Draft
-            </button>
-          </article>
-        ))}
-      </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span className="badge info">{c.category}</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
+                    <UserIcon size={14} />
+                    <span>Lead Advocate: <strong style={{ color: 'var(--navy-900)' }}>{c.owner}</strong></span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <CalendarIcon size={14} />
+                    <span>Next Hearing: <strong style={{ color: 'var(--navy-950)' }}>{c.next_hearing || 'Not scheduled'}</strong></span>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                className="secondary"
+                disabled={isGenerating}
+                style={{ width: '100%', justifyContent: 'center' }}
+                onClick={() => generateDraft(c.id)}
+              >
+                <SparklesIcon size={14} style={{ color: 'var(--gold-600)' }} />
+                <span>Generate AI Client Update Draft</span>
+              </button>
+            </article>
+          ))}
+        </div>
+      )}
 
       {/* DRAFT REVIEW DRAWER */}
       {draft && (
-        <section className="review-box card" style={{ marginTop: '32px' }}>
+        <section className="review-box" style={{ marginTop: '32px' }}>
           <div className="card-head">
-            <div>
-              <p className="eyebrow">ADVOCATE REVIEW & APPROVAL</p>
-              <h2>Draft Update — {draft.status}</h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <GavelIcon size={22} style={{ color: 'var(--gold-600)' }} />
+              <div>
+                <p className="eyebrow" style={{ margin: 0 }}>ADVOCATE REVIEW & APPROVAL</p>
+                <h2 style={{ fontSize: '20px' }}>Draft Client Update — #{draft.id}</h2>
+              </div>
             </div>
             <span className={`badge ${draft.status === 'Approved' ? 'approved' : 'high'}`}>
-              {draft.status}
+              Status: {draft.status}
             </span>
           </div>
 
           <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', marginBottom: '6px', color: 'var(--text-muted)' }}>
-              Advocate Text Editor (Edit AI suggestion before approving):
+            <label>
+              <span className="form-label-text">
+                Advocate Text Editor (Edit AI suggestion before approving):
+              </span>
+              <textarea
+                disabled={draft.status === 'Approved'}
+                value={draftText}
+                onChange={(e) => setDraftText(e.target.value)}
+                rows={6}
+                style={{ marginTop: '6px' }}
+              />
             </label>
-            <textarea
-              disabled={draft.status === 'Approved'}
-              value={draftText}
-              onChange={(e) => setDraftText(e.target.value)}
-              rows={6}
-            />
           </div>
 
-          <div className="notice warning" style={{ marginBottom: '16px', fontSize: '13px' }}>
-            <strong>Responsible AI Rule:</strong> AI draft remains pending until the advocate explicitly edits and approves it.
+          <div className="notice warning" style={{ marginBottom: '20px', fontSize: '13px' }}>
+            <ShieldCheckIcon size={16} />
+            <div>
+              <strong>Responsible AI Rule:</strong> AI draft remains pending until the advocate explicitly edits and approves it.
+            </div>
           </div>
 
           {draft.status !== 'Approved' && (
@@ -181,6 +237,7 @@ export default function CasesPage() {
                 Save Edits
               </button>
               <button className="success" onClick={approveDraft}>
+                <CheckIcon size={16} />
                 Approve & Seal Draft
               </button>
             </div>
@@ -193,13 +250,18 @@ export default function CasesPage() {
         <div className="modal-overlay">
           <div className="modal-content">
             <div className="card-head">
-              <h2>Add New Demo Case</h2>
-              <button className="secondary" onClick={() => setIsCreating(false)}>✕</button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <BriefcaseIcon size={20} style={{ color: 'var(--gold-600)' }} />
+                <h2>Add New Demo Case</h2>
+              </div>
+              <button className="secondary" style={{ padding: '6px' }} onClick={() => setIsCreating(false)}>
+                <CloseIcon size={16} />
+              </button>
             </div>
 
-            <form onSubmit={handleCreateCase} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <form onSubmit={handleCreateCase} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '12px' }}>
               <label>
-                <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-muted)' }}>Case Code</span>
+                <span className="form-label-text">Case Code</span>
                 <input
                   required
                   placeholder="e.g. DEMO-CIV-004"
@@ -209,7 +271,7 @@ export default function CasesPage() {
               </label>
 
               <label>
-                <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-muted)' }}>Case Title</span>
+                <span className="form-label-text">Case Title</span>
                 <input
                   required
                   placeholder="e.g. Land Acquisition Appeal"
@@ -219,7 +281,7 @@ export default function CasesPage() {
               </label>
 
               <label>
-                <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-muted)' }}>Category</span>
+                <span className="form-label-text">Category</span>
                 <select
                   value={newCase.category}
                   onChange={(e) => setNewCase({ ...newCase, category: e.target.value })}
@@ -232,7 +294,7 @@ export default function CasesPage() {
               </label>
 
               <label>
-                <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-muted)' }}>Next Hearing Date</span>
+                <span className="form-label-text">Next Hearing Date</span>
                 <input
                   type="date"
                   value={newCase.next_hearing}
@@ -241,18 +303,20 @@ export default function CasesPage() {
               </label>
 
               <label>
-                <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-muted)' }}>Lead Advocate</span>
+                <span className="form-label-text">Lead Advocate</span>
                 <input
                   value={newCase.owner}
                   onChange={(e) => setNewCase({ ...newCase, owner: e.target.value })}
                 />
               </label>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '12px' }}>
                 <button type="button" className="secondary" onClick={() => setIsCreating(false)}>
                   Cancel
                 </button>
-                <button type="submit">Create Case</button>
+                <button type="submit" className="gold">
+                  Create Case
+                </button>
               </div>
             </form>
           </div>
