@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getJSON, sendJSON } from '../../lib/api';
+import { fetchDocuments, fetchDocument, createDocument, searchAIDocuments, summarizeAIDocument, fetchCases } from '../../lib/api';
 import PageHeader from '../../components/PageHeader';
-import { DocumentIcon, PlusIcon, SearchIcon, SparklesIcon, CalendarIcon, CloseIcon, ShieldCheckIcon, CourthouseIcon } from '../../components/Icons';
+import EmptyState from '../../components/EmptyState';
+import { DocumentIcon, PlusIcon, SearchIcon, SparklesIcon, CalendarIcon, CloseIcon, ShieldCheckIcon } from '../../components/Icons';
 
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState([]);
@@ -26,9 +27,9 @@ export default function DocumentsPage() {
 
   const loadDocuments = async () => {
     try {
-      const docs = await getJSON('/documents');
+      const docs = await fetchDocuments();
       setDocuments(docs);
-      const c = await getJSON('/cases');
+      const c = await fetchCases();
       setCases(c);
       if (c.length > 0 && !newDoc.case_id) {
         setNewDoc((prev) => ({ ...prev, case_id: c[0].id }));
@@ -51,7 +52,7 @@ export default function DocumentsPage() {
     setIsSearching(true);
     setMessage('Searching synthetic demo documents...');
     try {
-      const res = await sendJSON('/ai/search', 'POST', { query });
+      const res = await searchAIDocuments(query);
       setSearchResults(res);
       setMessage(`Found ${res.results.length} matching document(s).`);
     } catch (e) {
@@ -65,7 +66,7 @@ export default function DocumentsPage() {
     setIsSummarizing(true);
     setMessage('Generating AI document summary...');
     try {
-      const res = await sendJSON('/ai/summary', 'POST', { document_id: docId });
+      const res = await summarizeAIDocument(docId);
       setSummaryResult(res);
       setMessage('AI Summary generated successfully.');
     } catch (e) {
@@ -75,9 +76,9 @@ export default function DocumentsPage() {
     }
   }
 
-  async function viewDocument(docId) {
+  async function handleViewDocument(docId) {
     try {
-      const doc = await getJSON(`/documents/${docId}`);
+      const doc = await fetchDocument(docId);
       setSelectedDoc(doc);
     } catch (e) {
       setMessage(`Error fetching document: ${e.message}`);
@@ -87,7 +88,7 @@ export default function DocumentsPage() {
   async function handleUploadDoc(e) {
     e.preventDefault();
     try {
-      await sendJSON('/documents', 'POST', { ...newDoc, case_id: parseInt(newDoc.case_id) });
+      await createDocument({ ...newDoc, case_id: parseInt(newDoc.case_id) });
       setMessage(`Document "${newDoc.name}" uploaded successfully!`);
       setIsUploading(false);
       setNewDoc({
@@ -151,9 +152,10 @@ export default function DocumentsPage() {
           </div>
 
           {searchResults.results.length === 0 ? (
-            <div className="empty-state" style={{ padding: '24px' }}>
-              <p className="empty-state-desc">No matching demo documents found for your search query.</p>
-            </div>
+            <EmptyState
+              title="No Documents Found"
+              description="No matching demo documents found for your search query."
+            />
           ) : (
             <div className="grid two">
               {searchResults.results.map((r) => (
@@ -171,7 +173,7 @@ export default function DocumentsPage() {
                   <button
                     className="secondary"
                     style={{ fontSize: '12px', padding: '6px 12px' }}
-                    onClick={() => viewDocument(r.document_id)}
+                    onClick={() => handleViewDocument(r.document_id)}
                   >
                     <DocumentIcon size={14} />
                     <span>View Document</span>
@@ -237,7 +239,7 @@ export default function DocumentsPage() {
             </div>
 
             <div style={{ display: 'flex', gap: '8px' }}>
-              <button className="secondary" style={{ flex: 1, fontSize: '12px', padding: '8px 10px' }} onClick={() => viewDocument(d.id)}>
+              <button className="secondary" style={{ flex: 1, fontSize: '12px', padding: '8px 10px' }} onClick={() => handleViewDocument(d.id)}>
                 <DocumentIcon size={14} />
                 <span>Read Text</span>
               </button>

@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getJSON, sendJSON } from '../../lib/api';
+import { fetchTasks, createTask, updateTaskStatus, fetchTaskPriority, fetchCases } from '../../lib/api';
 import PageHeader from '../../components/PageHeader';
-import { GavelIcon, PlusIcon, SparklesIcon, FilterIcon, CalendarIcon, UserIcon, CheckIcon, CloseIcon } from '../../components/Icons';
+import { GavelIcon, PlusIcon, SparklesIcon, FilterIcon, CheckIcon, CloseIcon } from '../../components/Icons';
 
 export default function TasksPage() {
   const [tasks, setTasks] = useState([]);
@@ -23,9 +23,9 @@ export default function TasksPage() {
 
   const loadTasks = async () => {
     try {
-      const data = await getJSON('/tasks');
+      const data = await fetchTasks();
       setTasks(data);
-      const c = await getJSON('/cases');
+      const c = await fetchCases();
       setCases(c);
       if (c.length > 0 && !newTask.case_id) {
         setNewTask((prev) => ({ ...prev, case_id: c[0].id }));
@@ -39,19 +39,20 @@ export default function TasksPage() {
     loadTasks();
   }, []);
 
-  async function setTaskStatus(id, newStatus) {
+  async function handleToggleStatus(id, currentStatus) {
+    const nextStatus = currentStatus === 'Done' ? 'Pending' : 'Done';
     try {
-      await sendJSON(`/tasks/${id}`, 'PATCH', { status: newStatus });
-      setMessage(`Task status updated to ${newStatus}.`);
+      await updateTaskStatus(id, nextStatus);
+      setMessage(`Task status updated to ${nextStatus}.`);
       loadTasks();
     } catch (e) {
       setMessage(`Error: ${e.message}`);
     }
   }
 
-  async function getPrioritySuggestion(taskId) {
+  async function handleGetPrioritySuggestion(taskId) {
     try {
-      const res = await getJSON(`/ai/task-priority/${taskId}`);
+      const res = await fetchTaskPriority(taskId);
       setSuggestion({ taskId, ...res });
     } catch (e) {
       setMessage(`Error: ${e.message}`);
@@ -61,7 +62,7 @@ export default function TasksPage() {
   async function handleCreateTask(e) {
     e.preventDefault();
     try {
-      await sendJSON('/tasks', 'POST', { ...newTask, case_id: parseInt(newTask.case_id) });
+      await createTask({ ...newTask, case_id: parseInt(newTask.case_id) });
       setMessage('New task created successfully!');
       setIsCreating(false);
       setNewTask({
@@ -178,7 +179,7 @@ export default function TasksPage() {
                     <button
                       className="secondary"
                       style={{ padding: '5px 10px', fontSize: '12px' }}
-                      onClick={() => getPrioritySuggestion(t.id)}
+                      onClick={() => handleGetPrioritySuggestion(t.id)}
                     >
                       <SparklesIcon size={12} style={{ color: 'var(--gold-600)' }} />
                       <span>AI Priority</span>
@@ -186,7 +187,7 @@ export default function TasksPage() {
                     <button
                       className={t.status === 'Done' ? 'secondary' : 'success'}
                       style={{ padding: '5px 10px', fontSize: '12px' }}
-                      onClick={() => setTaskStatus(t.id, t.status === 'Done' ? 'Pending' : 'Done')}
+                      onClick={() => handleToggleStatus(t.id, t.status)}
                     >
                       <CheckIcon size={12} />
                       <span>{t.status === 'Done' ? 'Reopen' : 'Mark Done'}</span>

@@ -1,19 +1,21 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getJSON, sendJSON } from '../../lib/api';
+import { fetchCases, createCase, generateAIClientDraft, updateDraftText, approveDraft } from '../../lib/api';
 import PageHeader from '../../components/PageHeader';
-import { BriefcaseIcon, PlusIcon, SearchIcon, SparklesIcon, CalendarIcon, UserIcon, GavelIcon, CheckIcon, CloseIcon, ShieldCheckIcon } from '../../components/Icons';
+import DraftReviewCard from '../../components/DraftReviewCard';
+import EmptyState from '../../components/EmptyState';
+import { BriefcaseIcon, PlusIcon, SearchIcon, SparklesIcon, CalendarIcon, UserIcon, CloseIcon } from '../../components/Icons';
 
 export default function CasesPage() {
   const [cases, setCases] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCase, setSelectedCase] = useState(null);
   const [draft, setDraft] = useState(null);
   const [draftText, setDraftText] = useState('');
   const [message, setMessage] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
 
   const [newCase, setNewCase] = useState({
     case_code: '',
@@ -26,7 +28,7 @@ export default function CasesPage() {
 
   const loadCases = async () => {
     try {
-      const data = await getJSON('/cases');
+      const data = await fetchCases();
       setCases(data);
     } catch (e) {
       setMessage('Failed to load demo cases. Make sure backend is running.');
@@ -40,7 +42,7 @@ export default function CasesPage() {
   async function handleCreateCase(e) {
     e.preventDefault();
     try {
-      await sendJSON('/cases', 'POST', newCase);
+      await createCase(newCase);
       setMessage(`Case ${newCase.case_code} created successfully!`);
       setIsCreating(false);
       setNewCase({
@@ -57,11 +59,11 @@ export default function CasesPage() {
     }
   }
 
-  async function generateDraft(caseId) {
+  async function handleGenerateDraft(caseId) {
     setIsGenerating(true);
     setMessage('AI is drafting client status update based on case progress...');
     try {
-      const d = await sendJSON('/ai/client-update-draft', 'POST', { case_id: caseId });
+      const d = await generateAIClientDraft(caseId);
       setDraft(d);
       setDraftText(d.draft_text);
       setMessage('AI Draft Generated! Advocate review required before sending.');
@@ -72,10 +74,10 @@ export default function CasesPage() {
     }
   }
 
-  async function updateDraftText() {
+  async function handleSaveEdits() {
     if (!draft) return;
     try {
-      const updated = await sendJSON(`/drafts/${draft.id}`, 'PATCH', { draft_text: draftText });
+      const updated = await updateDraftText(draft.id, draftText);
       setDraft(updated);
       setMessage('Advocate edits saved.');
     } catch (e) {
@@ -83,15 +85,18 @@ export default function CasesPage() {
     }
   }
 
-  async function approveDraft() {
+  async function handleApproveDraft() {
     if (!draft) return;
+    setIsApproving(true);
     try {
-      await updateDraftText();
-      const approved = await sendJSON(`/drafts/${draft.id}/approve`, 'POST');
+      await updateDraftText(draft.id, draftText);
+      const approved = await approveDraft(draft.id);
       setDraft(approved);
       setMessage('Draft approved by Advocate! Action enabled.');
     } catch (e) {
       setMessage(`Error approving draft: ${e.message}`);
+    } finally {
+      setIsApproving(false);
     }
   }
 
@@ -139,13 +144,11 @@ export default function CasesPage() {
 
       {/* CASES GRID */}
       {filteredCases.length === 0 ? (
-        <div className="card empty-state">
-          <div className="empty-state-icon">
-            <BriefcaseIcon size={24} />
-          </div>
-          <h3 className="empty-state-title">No Cases Found</h3>
-          <p className="empty-state-desc">No demo cases match your search query. Try clearing the filter or create a new case.</p>
-        </div>
+        <EmptyState
+          icon={BriefcaseIcon}
+          title="No Cases Found"
+          description="No demo cases match your search query. Try clearing the filter or create a new case."
+        />
       ) : (
         <div className="grid three">
           {filteredCases.map((c) => (
@@ -183,7 +186,7 @@ export default function CasesPage() {
                 className="secondary"
                 disabled={isGenerating}
                 style={{ width: '100%', justifyContent: 'center' }}
-                onClick={() => generateDraft(c.id)}
+                onClick={() => handleGenerateDraft(c.id)}
               >
                 <SparklesIcon size={14} style={{ color: 'var(--gold-600)' }} />
                 <span>Generate AI Client Update Draft</span>
@@ -195,54 +198,15 @@ export default function CasesPage() {
 
       {/* DRAFT REVIEW DRAWER */}
       {draft && (
-        <section className="review-box" style={{ marginTop: '32px' }}>
-          <div className="card-head">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <GavelIcon size={22} style={{ color: 'var(--gold-600)' }} />
-              <div>
-                <p className="eyebrow" style={{ margin: 0 }}>ADVOCATE REVIEW & APPROVAL</p>
-                <h2 style={{ fontSize: '20px' }}>Draft Client Update — #{draft.id}</h2>
-              </div>
-            </div>
-            <span className={`badge ${draft.status === 'Approved' ? 'approved' : 'high'}`}>
-              Status: {draft.status}
-            </span>
-          </div>
-
-          <div style={{ marginBottom: '16px' }}>
-            <label>
-              <span className="form-label-text">
-                Advocate Text Editor (Edit AI suggestion before approving):
-              </span>
-              <textarea
-                disabled={draft.status === 'Approved'}
-                value={draftText}
-                onChange={(e) => setDraftText(e.target.value)}
-                rows={6}
-                style={{ marginTop: '6px' }}
-              />
-            </label>
-          </div>
-
-          <div className="notice warning" style={{ marginBottom: '20px', fontSize: '13px' }}>
-            <ShieldCheckIcon size={16} />
-            <div>
-              <strong>Responsible AI Rule:</strong> AI draft remains pending until the advocate explicitly edits and approves it.
-            </div>
-          </div>
-
-          {draft.status !== 'Approved' && (
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button className="secondary" onClick={updateDraftText}>
-                Save Edits
-              </button>
-              <button className="success" onClick={approveDraft}>
-                <CheckIcon size={16} />
-                Approve & Seal Draft
-              </button>
-            </div>
-          )}
-        </section>
+        <DraftReviewCard
+          draft={draft}
+          isEditable={true}
+          draftText={draftText}
+          setDraftText={setDraftText}
+          onSaveEdits={handleSaveEdits}
+          onApprove={handleApproveDraft}
+          isApproving={isApproving}
+        />
       )}
 
       {/* CREATE CASE MODAL */}

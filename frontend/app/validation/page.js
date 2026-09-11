@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getJSON, sendJSON } from '../../lib/api';
+import { fetchFeedback, submitFeedback } from '../../lib/api';
 import PageHeader from '../../components/PageHeader';
-import { ShieldCheckIcon, UserIcon, CheckIcon, SparklesIcon, CalendarIcon } from '../../components/Icons';
+import { ShieldCheckIcon, UserIcon, CheckIcon, CalendarIcon } from '../../components/Icons';
 
 const initialForm = {
   tester_role: '',
@@ -22,7 +22,7 @@ export default function ValidationPage() {
 
   const loadFeedback = async () => {
     try {
-      const data = await getJSON('/validation');
+      const data = await fetchFeedback();
       setFeedbackList(data);
     } catch (e) {
       setMessage('Failed to load recorded feedback.');
@@ -38,7 +38,7 @@ export default function ValidationPage() {
     setIsSubmitting(true);
     setMessage('');
     try {
-      await sendJSON('/validation', 'POST', form);
+      await submitFeedback(form);
       setMessage('Tester feedback saved successfully to database!');
       setForm(initialForm);
       loadFeedback();

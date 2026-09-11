@@ -54,5 +54,5 @@ To address these pain points, 8 distinct solution concepts were conceptualized a
 
 - **AI is an Assistant, Not a Decision Maker:** AI functionality (summaries, priority hints, client updates) generates actionable drafts or suggestions.
 - **Human Authority Required:** No draft message is sent and no automated legal action occurs without explicit review and approval by a qualified advocate.
-- **Privacy & Safety First:** The system relies on synthetic demo data for college prototype review, maintaining strict zero-trust data boundaries.
+- **Privacy & Safety First:** The system relies on synthetic demo data during development and demonstration, maintaining strict zero-trust data boundaries.
 

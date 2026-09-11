@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getJSON, sendJSON } from '../lib/api';
-import { CourthouseIcon, BriefcaseIcon, GavelIcon, DocumentIcon, CalendarIcon, ShieldCheckIcon, CheckIcon, ClockIcon, SparklesIcon } from '../components/Icons';
+import { fetchDashboard, approveDraft } from '../lib/api';
+import StatCard from '../components/StatCard';
+import DraftReviewCard from '../components/DraftReviewCard';
+import { CourthouseIcon, BriefcaseIcon, GavelIcon, SparklesIcon, CalendarIcon, ShieldCheckIcon, CheckIcon, ClockIcon } from '../components/Icons';
 
 export default function Dashboard() {
   const [data, setData] = useState(null);
@@ -12,7 +14,7 @@ export default function Dashboard() {
   const [approvingId, setApprovingId] = useState(null);
 
   const loadData = () => {
-    getJSON('/dashboard')
+    fetchDashboard()
       .then((d) => {
         setData(d);
         if (d.pending_drafts) setDrafts(d.pending_drafts);
@@ -24,10 +26,10 @@ export default function Dashboard() {
     loadData();
   }, []);
 
-  async function approveDraft(draftId) {
+  async function handleApproveDraft(draftId) {
     setApprovingId(draftId);
     try {
-      await sendJSON(`/drafts/${draftId}/approve`, 'POST');
+      await approveDraft(draftId);
       setActionMessage('Draft approved successfully by advocate!');
       loadData();
     } catch (e) {
@@ -76,45 +78,10 @@ export default function Dashboard() {
 
       {/* METRICS STATS */}
       <section className="grid stats">
-        <article className="card stat-card">
-          <div className="stat-icon-box">
-            <BriefcaseIcon size={22} />
-          </div>
-          <div className="stat-info">
-            <span>Total Cases</span>
-            <strong>{data?.case_count ?? '—'}</strong>
-          </div>
-        </article>
-
-        <article className="card stat-card">
-          <div className="stat-icon-box">
-            <GavelIcon size={22} />
-          </div>
-          <div className="stat-info">
-            <span>Open Tasks</span>
-            <strong>{data?.open_task_count ?? '—'}</strong>
-          </div>
-        </article>
-
-        <article className="card stat-card">
-          <div className="stat-icon-box">
-            <SparklesIcon size={22} />
-          </div>
-          <div className="stat-info">
-            <span>Pending AI Drafts</span>
-            <strong>{data?.pending_review_count ?? '—'}</strong>
-          </div>
-        </article>
-
-        <article className="card stat-card">
-          <div className="stat-icon-box">
-            <CalendarIcon size={22} />
-          </div>
-          <div className="stat-info">
-            <span>Upcoming Hearings</span>
-            <strong>{data?.upcoming_hearings?.length ?? '—'}</strong>
-          </div>
-        </article>
+        <StatCard icon={BriefcaseIcon} label="Total Cases" value={data?.case_count} />
+        <StatCard icon={GavelIcon} label="Open Tasks" value={data?.open_task_count} />
+        <StatCard icon={SparklesIcon} label="Pending AI Drafts" value={data?.pending_review_count} />
+        <StatCard icon={CalendarIcon} label="Upcoming Hearings" value={data?.upcoming_hearings?.length} />
       </section>
 
       {/* MAIN DASHBOARD CONTENT */}
@@ -209,48 +176,14 @@ export default function Dashboard() {
       </section>
 
       {/* PENDING ADVOCATE REVIEW WIDGET */}
-      {drafts.length > 0 && (
-        <section className="review-box">
-          <div className="card-head" style={{ marginBottom: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <SparklesIcon size={20} style={{ color: 'var(--gold-600)' }} />
-              <div>
-                <p className="eyebrow" style={{ margin: 0 }}>ADVOCATE APPROVAL QUEUE</p>
-                <h2>AI Generated Client Status Drafts</h2>
-              </div>
-            </div>
-            <span className="badge high">Action Required</span>
-          </div>
-
-          <p className="lead" style={{ fontSize: '13.5px', color: 'var(--text-muted)', marginBottom: '20px' }}>
-            The following updates were drafted by LegalFlow AI. They must be reviewed and approved by an advocate prior to dispatch.
-          </p>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {drafts.map((draft) => (
-              <div key={draft.id} className="result-box" style={{ margin: 0 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                  <strong style={{ fontSize: '15px', color: 'var(--navy-950)' }}>
-                    Draft Update #{draft.id} — Status: {draft.status}
-                  </strong>
-                  <span className="badge gold">Pending Advocate Approval</span>
-                </div>
-                <p style={{ whiteSpace: 'pre-wrap', marginBottom: '16px', lineHeight: '1.6' }}>{draft.draft_text}</p>
-                <div style={{ display: 'flex', gap: '12px' }}>
-                  <button
-                    className="success"
-                    disabled={approvingId === draft.id}
-                    onClick={() => approveDraft(draft.id)}
-                  >
-                    <CheckIcon size={16} />
-                    {approvingId === draft.id ? 'Approving...' : 'Approve & Seal Draft'}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+      {drafts.map((draft) => (
+        <DraftReviewCard
+          key={draft.id}
+          draft={draft}
+          onApprove={handleApproveDraft}
+          isApproving={approvingId === draft.id}
+        />
+      ))}
 
       <div className="notice info" style={{ marginTop: '28px' }}>
         <ShieldCheckIcon size={18} />
