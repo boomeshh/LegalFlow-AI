@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 import sqlite3
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-DB_PATH = BASE_DIR / "legalflow_demo.db"
+# Allow tests to override DB path via env var (e.g. a temp file path)
+_env_db = os.getenv("LEGALFLOW_DB")
+DB_PATH: str = _env_db if _env_db else str(BASE_DIR / "legalflow_demo.db")
 
 
 def get_db() -> sqlite3.Connection:
@@ -28,7 +31,7 @@ def one(query: str, params=()) -> dict | None:
 
 
 def init_db() -> None:
-    """Initializes SQLite tables and seeds initial demonstration data if empty."""
+    """Initialises SQLite tables and seeds initial demonstration data if empty."""
     with get_db() as conn:
         conn.executescript(
             """

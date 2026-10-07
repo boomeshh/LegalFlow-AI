@@ -600,19 +600,19 @@ Install:
 ```bash
 cd backend
 
-python -m venv .venv
+py -3.12 -m venv .venv312
 ```
 
 ### Windows
 
 ```bash
-.venv\Scripts\activate
+.venv312\Scripts\activate
 ```
 
 ### macOS / Linux
 
 ```bash
-source .venv/bin/activate
+source .venv312/bin/activate
 ```
 
 Install dependencies:
@@ -716,7 +716,91 @@ Enter real user feedback after testing the system.
 
 ---
 
-## Future Improvements
+## Review 2 — New Features
+
+### 1. Hybrid Retrieval Abstraction (AI Search)
+
+`backend/app/retrieval.py` introduces a clean retrieval interface:
+
+```
+BaseRetriever          (abstract)
+  ├── KeywordRetriever (default — no extra deps, deterministic TF matching)
+  └── VectorRetriever  (future — FAISS + sentence-transformers stub)
+```
+
+Switch backend by setting an environment variable before starting the server:
+
+```bash
+# Default (no change required)
+RETRIEVAL_BACKEND=keyword
+
+# Future semantic search (requires: pip install faiss-cpu sentence-transformers)
+RETRIEVAL_BACKEND=vector
+```
+
+The existing keyword search continues to work without any change.
+
+---
+
+### 2. Authentication & RBAC
+
+A simple demo JWT-based auth layer has been added.
+
+**Demo credentials** (password for all: `demo123`):
+
+| Username | Role | Access |
+| :--- | :--- | :--- |
+| `senior_advocate` | Senior Advocate | Full access — cases, tasks, documents, drafts, AI |
+| `junior_advocate` | Junior Advocate | Tasks, case/doc read, AI search & summary |
+| `client` | Client | Read-only dashboard and case list |
+
+**Login endpoint:**
+
+```
+POST /auth/login
+{ "username": "senior_advocate", "password": "demo123" }
+```
+
+All protected endpoints require a `Bearer` token in the `Authorization` header.
+
+The frontend has a `/login` page with one-click demo role shortcuts. The navigation bar shows the current user and a sign-out button. Each page redirects to login if unauthenticated.
+
+This is a **demo-only** implementation. No real credentials are used or stored.
+
+---
+
+### 3. Automated Tests (pytest + GitHub Actions CI)
+
+A pytest suite in `backend/tests/test_api.py` covers:
+
+- Health check
+- Authentication (login, `/auth/me`, bad credentials, RBAC enforcement)
+- Dashboard
+- Cases (list, create, get, error cases)
+- Tasks (list, create, update, role checks)
+- Documents (list, get, create, validation)
+- AI endpoints (summary, search, task-priority, client-draft)
+- Drafts (update text, approve, RBAC)
+- Validation / Feedback (list, create, role checks)
+- Retrieval abstraction unit tests
+
+**Run tests locally:**
+
+```bash
+cd backend
+py -3.12 -m venv .venv312
+.venv312\Scripts\activate   # Windows
+source .venv312/bin/activate # macOS/Linux
+pip install -r requirements.txt
+pytest tests/ -v
+```
+
+**GitHub Actions CI** (`.github/workflows/ci.yml`) runs automatically on push to `main`, `dev`, or `review-2` branches and on pull requests to `main`. It runs:
+
+1. `pytest` against the backend (Python 3.11)
+2. `npm run build` against the frontend (Node.js 20)
+
+---
 
 Possible future improvements include:
 

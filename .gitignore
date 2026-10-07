@@ -1,7 +1,9 @@
 # Dependencies
 frontend/node_modules
 backend/.venv
+backend/.venv312
 .venv
+.venv312
 env/
 venv/
 

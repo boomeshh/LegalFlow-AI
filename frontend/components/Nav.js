@@ -1,11 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { ScalesIcon, CourthouseIcon, BriefcaseIcon, DocumentIcon, ShieldCheckIcon, GavelIcon } from './Icons';
+import { usePathname, useRouter } from 'next/navigation';
+import { useAuth } from '../lib/AuthContext';
+import { ScalesIcon, CourthouseIcon, BriefcaseIcon, DocumentIcon, ShieldCheckIcon, GavelIcon, UserIcon } from './Icons';
 
 export default function Nav() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, signOut } = useAuth();
 
   const links = [
     { href: '/', label: 'Dashboard', icon: CourthouseIcon },
@@ -14,6 +17,11 @@ export default function Nav() {
     { href: '/documents', label: 'Documents & AI', icon: DocumentIcon },
     { href: '/validation', label: 'Feedback', icon: ShieldCheckIcon },
   ];
+
+  function handleSignOut() {
+    signOut();
+    router.push('/login');
+  }
 
   return (
     <header className="topbar">
@@ -45,9 +53,29 @@ export default function Nav() {
           })}
         </nav>
 
-        <div className="principle-badge">
-          <ShieldCheckIcon size={14} />
-          <span>AI Suggests → Advocate Approves</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {user ? (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', color: 'var(--text-muted)' }}>
+                <UserIcon size={14} />
+                <span style={{ fontWeight: '600', color: 'var(--navy-900)' }}>{user.display_name}</span>
+                <span className="badge info" style={{ fontSize: '10.5px', padding: '2px 7px' }}>{user.role}</span>
+              </div>
+              <button
+                className="secondary"
+                style={{ padding: '5px 12px', fontSize: '12px' }}
+                onClick={handleSignOut}
+              >
+                Sign Out
+              </button>
+            </>
+          ) : (
+            <Link href="/login">
+              <button className="gold" style={{ padding: '5px 14px', fontSize: '12px' }}>
+                Sign In
+              </button>
+            </Link>
+          )}
         </div>
       </div>
     </header>

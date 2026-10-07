@@ -15,25 +15,13 @@ def simple_summary(text: str) -> str:
 
 
 def search_documents(docs: list[dict], query: str) -> list[dict]:
-    """Performs keyword relevance matching across indexed document content."""
-    terms = [t for t in re.findall(r"\w+", query.lower()) if len(t) > 2]
-    if not terms:
-        return []
-    
-    scored = []
-    for doc in docs:
-        haystack = f"{doc['name']} {doc['content']}".lower()
-        score = sum(haystack.count(t) for t in terms)
-        if score > 0:
-            scored.append({
-                "document_id": doc["id"],
-                "name": doc["name"],
-                "case_code": doc["case_code"],
-                "score": score,
-                "preview": doc["content"][:220] + ("..." if len(doc["content"]) > 220 else ""),
-            })
-    scored.sort(key=lambda x: x["score"], reverse=True)
-    return scored
+    """Delegates document search to the active retrieval backend.
+
+    The retrieval backend is selected via the RETRIEVAL_BACKEND env var
+    (default: 'keyword').  See app/retrieval.py for details.
+    """
+    from .retrieval import retriever
+    return retriever.search(docs, query)
 
 
 def evaluate_task_priority(task: dict) -> dict:

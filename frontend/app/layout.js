@@ -1,6 +1,7 @@
 import { Playfair_Display, Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
 import Nav from '../components/Nav';
+import { AuthProvider } from '../lib/AuthContext';
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
@@ -23,10 +24,11 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${playfair.variable} ${jakarta.variable}`}>
       <body>
-        <Nav />
-        <main className="shell">{children}</main>
+        <AuthProvider>
+          <Nav />
+          <main className="shell">{children}</main>
+        </AuthProvider>
       </body>
     </html>
   );
 }
-
