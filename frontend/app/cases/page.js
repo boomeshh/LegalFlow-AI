@@ -5,9 +5,12 @@ import { fetchCases, createCase, generateAIClientDraft, updateDraftText, approve
 import PageHeader from '../../components/PageHeader';
 import DraftReviewCard from '../../components/DraftReviewCard';
 import EmptyState from '../../components/EmptyState';
+import AuthGuard from '../../components/AuthGuard';
+import { useAuth } from '../../lib/AuthContext';
 import { BriefcaseIcon, PlusIcon, SearchIcon, SparklesIcon, CalendarIcon, UserIcon, CloseIcon } from '../../components/Icons';
 
 export default function CasesPage() {
+  const { hasPermission } = useAuth();
   const [cases, setCases] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [draft, setDraft] = useState(null);
@@ -107,6 +110,7 @@ export default function CasesPage() {
   );
 
   return (
+    <AuthGuard>
     <div>
       <PageHeader
         breadcrumbs={[{ label: 'Cases' }]}
@@ -114,10 +118,12 @@ export default function CasesPage() {
         title="Legal Cases & Matters"
         subtitle="Track active legal proceedings, scheduled hearings, lead advocates, and AI client communications."
         action={
-          <button onClick={() => setIsCreating(true)}>
-            <PlusIcon size={16} />
-            <span>New Demo Case</span>
-          </button>
+          hasPermission('cases:write') && (
+            <button onClick={() => setIsCreating(true)}>
+              <PlusIcon size={16} />
+              <span>New Demo Case</span>
+            </button>
+          )
         }
       />
 
@@ -184,9 +190,10 @@ export default function CasesPage() {
 
               <button
                 className="secondary"
-                disabled={isGenerating}
+                disabled={isGenerating || !hasPermission('ai:all')}
                 style={{ width: '100%', justifyContent: 'center' }}
                 onClick={() => handleGenerateDraft(c.id)}
+                title={!hasPermission('ai:all') ? 'Senior Advocate role required' : ''}
               >
                 <SparklesIcon size={14} style={{ color: 'var(--gold-600)' }} />
                 <span>Generate AI Client Update Draft</span>
@@ -287,5 +294,6 @@ export default function CasesPage() {
         </div>
       )}
     </div>
+    </AuthGuard>
   );
 }

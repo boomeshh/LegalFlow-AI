@@ -3,9 +3,12 @@
 import { useEffect, useState } from 'react';
 import { fetchTasks, createTask, updateTaskStatus, fetchTaskPriority, fetchCases } from '../../lib/api';
 import PageHeader from '../../components/PageHeader';
+import AuthGuard from '../../components/AuthGuard';
+import { useAuth } from '../../lib/AuthContext';
 import { GavelIcon, PlusIcon, SparklesIcon, FilterIcon, CheckIcon, CloseIcon } from '../../components/Icons';
 
 export default function TasksPage() {
+  const { hasPermission } = useAuth();
   const [tasks, setTasks] = useState([]);
   const [cases, setCases] = useState([]);
   const [suggestion, setSuggestion] = useState(null);
@@ -84,6 +87,7 @@ export default function TasksPage() {
   });
 
   return (
+    <AuthGuard>
     <div>
       <PageHeader
         breadcrumbs={[{ label: 'Tasks' }]}
@@ -91,10 +95,12 @@ export default function TasksPage() {
         title="Advocate & Junior Tasks"
         subtitle="Manage workflow assignments, track deadlines, filter by team roles, and receive AI task priority guidance."
         action={
-          <button onClick={() => setIsCreating(true)}>
-            <PlusIcon size={16} />
-            <span>Assign New Task</span>
-          </button>
+          hasPermission('tasks:write') && (
+            <button onClick={() => setIsCreating(true)}>
+              <PlusIcon size={16} />
+              <span>Assign New Task</span>
+            </button>
+          )
         }
       />
 
@@ -285,5 +291,6 @@ export default function TasksPage() {
         </div>
       )}
     </div>
+    </AuthGuard>
   );
 }

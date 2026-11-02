@@ -4,9 +4,12 @@ import { useEffect, useState } from 'react';
 import { fetchDocuments, fetchDocument, createDocument, searchAIDocuments, summarizeAIDocument, fetchCases } from '../../lib/api';
 import PageHeader from '../../components/PageHeader';
 import EmptyState from '../../components/EmptyState';
+import AuthGuard from '../../components/AuthGuard';
+import { useAuth } from '../../lib/AuthContext';
 import { DocumentIcon, PlusIcon, SearchIcon, SparklesIcon, CalendarIcon, CloseIcon, ShieldCheckIcon } from '../../components/Icons';
 
 export default function DocumentsPage() {
+  const { hasPermission } = useAuth();
   const [documents, setDocuments] = useState([]);
   const [cases, setCases] = useState([]);
   const [query, setQuery] = useState('');
@@ -104,6 +107,7 @@ export default function DocumentsPage() {
   }
 
   return (
+    <AuthGuard>
     <div>
       <PageHeader
         breadcrumbs={[{ label: 'Documents & AI' }]}
@@ -111,10 +115,12 @@ export default function DocumentsPage() {
         title="Documents & AI Assistant"
         subtitle="Search indexed case documents by legal context, inspect full filings, and request automated AI summaries."
         action={
-          <button onClick={() => setIsUploading(true)}>
-            <PlusIcon size={16} />
-            <span>Upload Demo Document</span>
-          </button>
+          hasPermission('documents:write') && (
+            <button onClick={() => setIsUploading(true)}>
+              <PlusIcon size={16} />
+              <span>Upload Demo Document</span>
+            </button>
+          )
         }
       />
 
@@ -360,5 +366,6 @@ export default function DocumentsPage() {
         </div>
       )}
     </div>
+    </AuthGuard>
   );
 }

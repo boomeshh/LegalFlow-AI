@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { fetchDashboard, approveDraft } from '../lib/api';
 import StatCard from '../components/StatCard';
 import DraftReviewCard from '../components/DraftReviewCard';
+import AuthGuard from '../components/AuthGuard';
+import { useAuth } from '../lib/AuthContext';
 import { CourthouseIcon, BriefcaseIcon, GavelIcon, SparklesIcon, CalendarIcon, ShieldCheckIcon, CheckIcon, ClockIcon } from '../components/Icons';
 
 export default function Dashboard() {
@@ -40,6 +42,7 @@ export default function Dashboard() {
   }
 
   return (
+    <AuthGuard>
     <div>
       {/* HERO SECTION */}
       <section className="hero">
@@ -192,5 +195,6 @@ export default function Dashboard() {
         </div>
       </div>
     </div>
+    </AuthGuard>
   );
 }

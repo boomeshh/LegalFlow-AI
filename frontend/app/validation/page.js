@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { fetchFeedback, submitFeedback } from '../../lib/api';
 import PageHeader from '../../components/PageHeader';
+import AuthGuard from '../../components/AuthGuard';
 import { ShieldCheckIcon, UserIcon, CheckIcon, CalendarIcon } from '../../components/Icons';
 
 const initialForm = {
@@ -50,6 +51,7 @@ export default function ValidationPage() {
   }
 
   return (
+    <AuthGuard>
     <div>
       <PageHeader
         breadcrumbs={[{ label: 'Feedback' }]}
@@ -203,5 +205,6 @@ export default function ValidationPage() {
         </div>
       </section>
     </div>
+    </AuthGuard>
   );
 }
