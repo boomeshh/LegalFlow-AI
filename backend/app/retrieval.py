@@ -47,6 +47,7 @@ class KeywordRetriever(BaseRetriever):
     """
 
     def search(self, docs: list[dict], query: str) -> list[dict]:
+        # Ignore short tokens because they produce noisy matches in legal text.
         terms = [t for t in re.findall(r"\w+", query.lower()) if len(t) > 2]
         if not terms:
             return []

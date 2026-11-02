@@ -13,6 +13,8 @@ function authHeaders() {
 }
 
 export async function getJSON(path) {
+  // Keep API error conversion in one place so pages can display backend
+  // authentication, authorization, validation, and not-found messages.
   const res = await fetch(`${API_BASE_URL}${path}`, {
     cache: 'no-store',
     headers: { ...authHeaders() },
@@ -30,6 +32,8 @@ export async function getJSON(path) {
 }
 
 export async function sendJSON(path, method = 'POST', body = {}) {
+  // Parse error payloads before checking the status so FastAPI's `detail`
+  // remains useful to the page-level action handlers.
   const res = await fetch(`${API_BASE_URL}${path}`, {
     method,
     headers: { 'Content-Type': 'application/json', ...authHeaders() },

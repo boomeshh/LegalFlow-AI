@@ -11,20 +11,20 @@ DB_PATH: str = _env_db if _env_db else str(BASE_DIR / "legalflow_demo.db")
 
 
 def get_db() -> sqlite3.Connection:
-    """Returns a SQLite connection with dict row access."""
+    """Open one short-lived connection with dict-like result rows."""
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
 
 
 def rows(query: str, params=()) -> list[dict]:
-    """Helper to execute a query and return all matching rows as dictionaries."""
+    """Execute a parameterized query and return all rows as dictionaries."""
     with get_db() as conn:
         return [dict(r) for r in conn.execute(query, params).fetchall()]
 
 
 def one(query: str, params=()) -> dict | None:
-    """Helper to execute a query and return a single row as a dictionary."""
+    """Execute a parameterized query and return one row, if present."""
     with get_db() as conn:
         r = conn.execute(query, params).fetchone()
         return dict(r) if r else None

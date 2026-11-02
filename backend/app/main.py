@@ -38,6 +38,7 @@ app.add_middleware(
 
 @app.on_event("startup")
 def startup():
+    # Startup creates missing tables and seeds only an empty demo database.
     init_db()
 
 
@@ -104,6 +105,8 @@ def list_cases(_user: dict = Depends(require_permission("cases:read"))):
 
 @app.post("/cases")
 def create_case(payload: CaseCreate, _user: dict = Depends(require_permission("cases:write"))):
+    # Normalize identifiers before checking uniqueness so casing does not
+    # create visually duplicate demo cases.
     code = payload.case_code.strip().upper()
     title = payload.title.strip()
     if not code or not title:
@@ -238,6 +241,7 @@ def ai_summary(payload: SummaryRequest, _user: dict = Depends(require_permission
 
 @app.post("/ai/search")
 def ai_search(payload: SearchRequest, _user: dict = Depends(require_permission("ai:search"))):
+    # Blank search is a valid no-result request; retrieval is skipped.
     q = payload.query.strip()
     if not q:
         return {"results": [], "mode": "demo fallback"}

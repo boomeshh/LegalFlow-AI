@@ -17,7 +17,6 @@ Secret key is fixed demo-only value — not for production use.
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from functools import wraps
 from typing import Optional
 
 from fastapi import Depends, HTTPException, status
@@ -131,6 +130,8 @@ def decode_token(token: str) -> Optional[dict]:
     try:
         return jwt.decode(token, DEMO_SECRET, algorithms=[ALGORITHM])
     except Exception:
+        # Treat malformed, expired, and incorrectly signed demo tokens alike.
+        # The dependency below turns all of them into a consistent 401.
         return None
 
 
@@ -170,6 +171,7 @@ def get_current_user(
 def require_permission(permission: str):
     """Dependency factory: raises 403 if user lacks the required permission."""
     def _check(user: dict = Depends(get_current_user)) -> dict:
+        # Authentication has already succeeded; this check enforces RBAC.
         allowed = ROLE_PERMISSIONS.get(user["role"], set())
         if permission not in allowed:
             raise HTTPException(

@@ -802,10 +802,142 @@ pytest tests/ -v
 
 ---
 
+## Implementation Reference
+
+The sections below describe the current implementation in `backend/app` and
+the frontend API client. They are intentionally limited to routes and data
+that exist in this repository.
+
+### API endpoints
+
+All protected routes require `Authorization: Bearer <access_token>`. The
+permission column names are the RBAC tags enforced by the backend.
+
+| Method | Route | Authentication / permission | Purpose |
+|---|---|---|---|
+| GET | `/health` | Public | Return service status, mode, and version. |
+| POST | `/auth/login` | Public | Validate a demo username/password and return a JWT, role, and display name. |
+| GET | `/auth/me` | Bearer token | Return the authenticated user and sorted permissions. |
+| GET | `/dashboard` | `dashboard:read` | Return case, open-task, pending-draft, hearing, and task dashboard data. |
+| GET | `/cases` | `cases:read` | List cases ordered by ID. |
+| POST | `/cases` | `cases:write` | Create a case after normalization and duplicate-code checks. |
+| GET | `/cases/{case_id}` | `cases:read` | Return one case with related tasks, documents, and drafts. |
+| GET | `/tasks` | `tasks:read` | List tasks with their case codes. |
+| POST | `/tasks` | `tasks:write` | Create a pending task for an existing case. |
+| PATCH | `/tasks/{task_id}` | `tasks:write` | Update a task's status, assignee, and/or priority. |
+| GET | `/documents` | `documents:read` | List documents with case codes and metadata/content. |
+| GET | `/documents/{document_id}` | `documents:read` | Return one document with its case code. |
+| POST | `/documents` | `documents:write` | Create a document for an existing case. |
+| POST | `/ai/summary` | `ai:summary` | Return a deterministic summary for a document. |
+| POST | `/ai/search` | `ai:search` | Search document names/content using the configured retrieval backend. |
+| GET | `/ai/task-priority/{task_id}` | `ai:priority` | Suggest priority from task status and due-date proximity. |
+| POST | `/ai/client-update-draft` | `ai:all` | Generate and persist a pending client-update draft for a case. |
+| PATCH | `/drafts/{draft_id}` | `drafts:write` | Edit draft text. |
+| POST | `/drafts/{draft_id}/approve` | `drafts:approve` | Mark a draft approved and record the approval time. |
+| GET | `/validation` | `validation:read` | List tester feedback, newest first. |
+| POST | `/validation` | `validation:write` | Validate and persist tester feedback. |
+
+Request and response shapes are defined by the Pydantic models in
+`backend/app/schemas.py` and by the route return values in
+`backend/app/main.py`. FastAPI's generated documentation is available at
+`http://localhost:8000/docs` while the backend is running.
+
+### Authentication and RBAC
+
+The prototype has three in-memory demo users. All use the password `demo123`.
+The backend signs JWTs for eight hours with the demo secret in
+`backend/app/auth.py`; this is not production authentication.
+
+| Role | Permissions |
+|---|---|
+| `senior_advocate` | Full case, task, document, draft, AI, validation, and dashboard access. |
+| `junior_advocate` | Read cases/documents; read/write tasks; read drafts; summary/search/priority AI; read/write validation; dashboard. |
+| `client` | Read cases and dashboard only. |
+
+The frontend uses role permissions to show or hide controls, but the backend
+dependency checks are the security boundary. A missing or invalid token is
+`401`; an authenticated role without a permission is `403`.
+
+### SQLite schema
+
+The default database is `backend/legalflow_demo.db`. Tests can override it
+with `LEGALFLOW_DB`. `init_db()` creates the following tables if they do not
+exist. SQLite stores the declared types below using its normal type affinity.
+
+| Table | Field | SQLite type | Constraints / relationship |
+|---|---|---|---|
+| `cases` | `id` | INTEGER | Primary key. |
+| `cases` | `case_code` | TEXT | Unique, not null. |
+| `cases` | `title` | TEXT | Not null. |
+| `cases` | `category` | TEXT | Not null. |
+| `cases` | `status` | TEXT | Not null. |
+| `cases` | `next_hearing` | TEXT | Nullable; stored as a date string when supplied. |
+| `cases` | `owner` | TEXT | Not null. |
+| `tasks` | `id` | INTEGER | Primary key. |
+| `tasks` | `case_id` | INTEGER | Not null; foreign key to `cases.id`. |
+| `tasks` | `title` | TEXT | Not null. |
+| `tasks` | `assignee` | TEXT | Not null. |
+| `tasks` | `due_date` | TEXT | Nullable; stored as a date string. |
+| `tasks` | `status` | TEXT | Not null. |
+| `tasks` | `priority` | TEXT | Not null. |
+| `documents` | `id` | INTEGER | Primary key. |
+| `documents` | `case_id` | INTEGER | Not null; foreign key to `cases.id`. |
+| `documents` | `name` | TEXT | Not null. |
+| `documents` | `doc_type` | TEXT | Not null. |
+| `documents` | `content` | TEXT | Not null. |
+| `documents` | `uploaded_at` | TEXT | Not null; ISO timestamp string. |
+| `drafts` | `id` | INTEGER | Primary key. |
+| `drafts` | `case_id` | INTEGER | Not null; foreign key to `cases.id`. |
+| `drafts` | `draft_text` | TEXT | Not null. |
+| `drafts` | `status` | TEXT | Not null. |
+| `drafts` | `created_at` | TEXT | Not null; ISO timestamp string. |
+| `drafts` | `approved_at` | TEXT | Nullable; ISO timestamp after approval. |
+| `validation_feedback` | `id` | INTEGER | Primary key. |
+| `validation_feedback` | `tester_role` | TEXT | Not null. |
+| `validation_feedback` | `task_tested` | TEXT | Not null. |
+| `validation_feedback` | `what_worked` | TEXT | Not null. |
+| `validation_feedback` | `confusing` | TEXT | Not null. |
+| `validation_feedback` | `improvement` | TEXT | Not null. |
+| `validation_feedback` | `final_feedback` | TEXT | Not null. |
+| `validation_feedback` | `created_at` | TEXT | Not null; ISO timestamp string. |
+
+The relationships are one-to-many from `cases` to `tasks`, `documents`, and
+`drafts`. `validation_feedback` is independent and has no foreign keys.
+The application uses parameterized SQL queries through `rows()`, `one()`,
+and short-lived connections in `backend/app/database.py`.
+
+### Error handling
+
+FastAPI route code raises `HTTPException` for authentication (`401`),
+authorization (`403`), invalid business input (`400`), and missing resources
+(`404`). Pydantic request-model failures are handled by FastAPI as `422`
+responses. Unexpected backend exceptions are not converted into fake success
+responses and should be investigated in server logs.
+
+The frontend API client converts non-2xx responses into errors and preserves
+FastAPI's `detail` text. It removes the stored token after `401` responses.
+Page handlers show loading/action failures in the existing notice UI. The
+Next.js route-level boundary in `frontend/app/error.js` covers unexpected
+React rendering errors and provides a retry action; it does not replace
+backend or page-level API handling.
+
+### Testing and verification
+
+Backend tests use a temporary SQLite file and cover authentication, RBAC,
+endpoint success paths, validation, not-found cases, empty search input, AI
+helpers, and retrieval ranking. The frontend currently has no separate
+component-test framework, so `npm run build` is the production compilation
+check, including the App Router boundary.
+
+See [`TESTING.md`](TESTING.md) for the complete test-case inventory,
+edge-case expectations, commands, and guidance for adding tests. The CI
+workflow runs `pytest tests/ -v --tb=short` in `backend` and `npm run build`
+in `frontend`.
+
+---
+
 Possible future improvements include:
 
-- User authentication
-- Role-based access control
 - Secure cloud document storage
 - Better document indexing
 - Advanced semantic search
